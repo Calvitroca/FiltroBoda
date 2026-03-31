@@ -1,0 +1,304 @@
+/* ═══════════════════════════════════════════════════
+   WEDDING PHOTO BOOTH — app.js
+   ═══════════════════════════════════════════════════ */
+
+// ── WEDDING CONFIG ──────────────────────────────────
+const WEDDING = {
+  names: 'María & Carlos',
+  date:  '30 · Marzo · 2026',
+};
+
+// ── FIREBASE CONFIG (optional) ──────────────────────
+// Fill this in to enable real-time cross-device gallery sharing.
+// Leave empty ({}) to use local storage only.
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyDfeE4i2oVsgPt5V9LnpouZzAq2Nq6--sI",
+  authDomain:        "fibo-38afb.firebaseapp.com",
+  projectId:         "fibo-38afb",
+  storageBucket:     "fibo-38afb.firebasestorage.app",
+  messagingSenderId: "619724835025",
+  appId:             "1:619724835025:web:1cb51eebe8fc583eec1df0",
+};
+
+/* ═══════════════════════════════════════════════════
+   STATE
+   ═══════════════════════════════════════════════════ */
+let stream          = null;
+let facingMode      = 'user'; // 'user' (front) | 'environment' (back)
+let photos          = [];     // { id, url, timestamp }
+let capturedDataURL = null;
+let useFirebase     = false;
+
+/* ═══════════════════════════════════════════════════
+   DOM REFS
+   ═══════════════════════════════════════════════════ */
+const $ = id => document.getElementById(id);
+const video          = $('video');
+const previewCanvas  = $('preview-canvas');
+const previewCtx     = previewCanvas.getContext('2d');
+const countdown      = $('countdown');
+const flash          = $('flash');
+const captureBtn     = $('capture-btn');
+const flipBtn        = $('flip-btn');
+const openGalleryBtn = $('open-gallery-btn');
+const backBtn        = $('back-btn');
+const retakeBtn      = $('retake-btn');
+const saveBtn        = $('save-btn');
+const photoGrid      = $('photo-grid');
+const emptyState     = $('empty-state');
+const photoCount     = $('photo-count');
+const galleryCount   = $('gallery-count');
+const modal          = $('photo-modal');
+const modalImg       = $('modal-img');
+const downloadBtn    = $('download-btn');
+const closeModalBtn  = $('close-modal-btn');
+const modalBackdrop  = modal.querySelector('.modal-backdrop');
+
+/* ═══════════════════════════════════════════════════
+   FIREBASE INIT
+   ═══════════════════════════════════════════════════ */
+function initFirebase() {
+  if (!FIREBASE_CONFIG.apiKey) return;
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    useFirebase = true;
+    console.log('[Firebase] Initialized – real-time sharing enabled.');
+    subscribeToPhotos();
+  } catch (e) {
+    console.warn('[Firebase] Init failed:', e.message);
+  }
+}
+
+async function savePhotoFirebase(dataURL) {
+  const id  = `photo_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  const ref = firebase.storage().ref(`wedding/${id}.jpg`);
+  await ref.putString(dataURL, 'data_url');
+  const url = await ref.getDownloadURL();
+  await firebase.firestore().collection('photos').doc(id).set({
+    url, timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+}
+
+function subscribeToPhotos() {
+  firebase.firestore()
+    .collection('photos')
+    .orderBy('timestamp', 'desc')
+    .onSnapshot(snap => {
+      photos = snap.docs.map(d => ({ id: d.id, url: d.data().url }));
+      renderGallery();
+    });
+}
+
+/* ═══════════════════════════════════════════════════
+   LOCAL STORAGE FALLBACK
+   ═══════════════════════════════════════════════════ */
+function savePhotoLocal(dataURL) {
+  const id = `photo_${Date.now()}`;
+  photos.unshift({ id, url: dataURL });
+  if (photos.length > 200) photos = photos.slice(0, 200);
+  try {
+    localStorage.setItem('wedding_photos', JSON.stringify(photos));
+  } catch (_) { /* storage full */ }
+  renderGallery();
+}
+
+function loadPhotosLocal() {
+  try {
+    const raw = localStorage.getItem('wedding_photos');
+    if (raw) photos = JSON.parse(raw);
+  } catch (_) {}
+  renderGallery();
+}
+
+/* ═══════════════════════════════════════════════════
+   CAMERA
+   ═══════════════════════════════════════════════════ */
+async function startCamera() {
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false,
+    });
+    video.srcObject = stream;
+    await video.play();
+  } catch (err) {
+    console.error('Camera error:', err);
+    alert('No se pudo acceder a la cámara. Asegúrate de dar permiso.');
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   CAPTURE
+   ═══════════════════════════════════════════════════ */
+function triggerCountdown() {
+  captureBtn.disabled = true;
+  let count = 3;
+  countdown.textContent = count;
+  countdown.classList.remove('hidden');
+
+  const interval = setInterval(() => {
+    count--;
+    if (count > 0) {
+      countdown.textContent = count;
+    } else {
+      clearInterval(interval);
+      countdown.classList.add('hidden');
+      capturePhoto();
+      captureBtn.disabled = false;
+    }
+  }, 1000);
+}
+
+function capturePhoto() {
+  // Flash effect
+  flash.classList.remove('hidden', 'go');
+  void flash.offsetWidth;
+  flash.classList.add('go');
+  setTimeout(() => flash.classList.add('hidden'), 500);
+
+  const vw = video.videoWidth  || video.offsetWidth;
+  const vh = video.videoHeight || video.offsetHeight;
+
+  const cap = document.createElement('canvas');
+  cap.width  = vw;
+  cap.height = vh;
+  const capCtx = cap.getContext('2d');
+
+  // Mirror for front camera
+  if (facingMode === 'user') {
+    capCtx.translate(vw, 0);
+    capCtx.scale(-1, 1);
+  }
+
+  // Draw raw video frame
+  capCtx.drawImage(video, 0, 0, vw, vh);
+
+  // ──────────────────────────────────────────────────
+  // TODO: draw filter overlay here once provided
+  // Example (when overlay image is ready):
+  //   capCtx.setTransform(1, 0, 0, 1, 0, 0); // reset mirror
+  //   capCtx.drawImage(overlayImg, 0, 0, vw, vh);
+  // ──────────────────────────────────────────────────
+
+  capturedDataURL = cap.toDataURL('image/jpeg', 0.92);
+
+  previewCanvas.width  = vw;
+  previewCanvas.height = vh;
+  previewCtx.drawImage(cap, 0, 0);
+
+  showScreen('screen-preview');
+}
+
+/* ═══════════════════════════════════════════════════
+   GALLERY
+   ═══════════════════════════════════════════════════ */
+function renderGallery() {
+  [...photoGrid.children].forEach(el => {
+    if (el !== emptyState) el.remove();
+  });
+
+  if (photos.length === 0) {
+    emptyState.classList.remove('hidden');
+    galleryCount.textContent = '0 fotos';
+    photoCount.classList.add('hidden');
+    return;
+  }
+
+  emptyState.classList.add('hidden');
+  galleryCount.textContent = `${photos.length} foto${photos.length !== 1 ? 's' : ''}`;
+  photoCount.textContent   = photos.length > 99 ? '99+' : photos.length;
+  photoCount.classList.remove('hidden');
+
+  photos.forEach(photo => {
+    const div = document.createElement('div');
+    div.className = 'photo-thumb';
+    const img = document.createElement('img');
+    img.src     = photo.url;
+    img.alt     = 'Foto de boda';
+    img.loading = 'lazy';
+    const overlay = document.createElement('div');
+    overlay.className = 'thumb-overlay';
+    overlay.innerHTML = '<span class="download-icon">📥</span>';
+    div.append(img, overlay);
+    div.addEventListener('click', () => openModal(photo.url));
+    photoGrid.prepend(div);
+  });
+}
+
+function openModal(url) {
+  modalImg.src = url;
+  modal.classList.remove('hidden');
+  downloadBtn.onclick = () => {
+    const a = document.createElement('a');
+    a.href     = url;
+    a.download = `boda-${Date.now()}.jpg`;
+    a.click();
+  };
+}
+
+function closeModal() {
+  modal.classList.add('hidden');
+  modalImg.src = '';
+}
+
+/* ═══════════════════════════════════════════════════
+   SCREEN NAVIGATION
+   ═══════════════════════════════════════════════════ */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => {
+    s.classList.toggle('active', s.id === id);
+    s.classList.toggle('hidden', s.id !== id);
+  });
+}
+
+/* ═══════════════════════════════════════════════════
+   EVENT LISTENERS
+   ═══════════════════════════════════════════════════ */
+captureBtn.addEventListener('click', capturePhoto);
+
+flipBtn.addEventListener('click', () => {
+  facingMode = facingMode === 'user' ? 'environment' : 'user';
+  startCamera();
+});
+
+openGalleryBtn.addEventListener('click', () => showScreen('screen-gallery'));
+backBtn.addEventListener('click',        () => showScreen('screen-camera'));
+
+retakeBtn.addEventListener('click', () => {
+  capturedDataURL = null;
+  showScreen('screen-camera');
+});
+
+saveBtn.addEventListener('click', async () => {
+  if (!capturedDataURL) return;
+  saveBtn.disabled    = true;
+  saveBtn.textContent = 'Guardando…';
+  try {
+    if (useFirebase) {
+      await savePhotoFirebase(capturedDataURL);
+    } else {
+      savePhotoLocal(capturedDataURL);
+    }
+    showScreen('screen-gallery');
+  } catch (err) {
+    console.error('Save error:', err);
+    alert('No se pudo guardar la foto. Inténtalo de nuevo.');
+  } finally {
+    saveBtn.disabled    = false;
+    saveBtn.textContent = 'Guardar ✓';
+    capturedDataURL     = null;
+  }
+});
+
+closeModalBtn.addEventListener('click', closeModal);
+modalBackdrop.addEventListener('click', closeModal);
+
+/* ═══════════════════════════════════════════════════
+   INIT
+   ═══════════════════════════════════════════════════ */
+(async function init() {
+  initFirebase();
+  if (!useFirebase) loadPhotosLocal();
+  await startCamera();
+})();

@@ -1,0 +1,11 @@
+{
+  "name": "Wedding Photo Booth",
+  "short_name": "FiltrosBoda",
+  "description": "Toma fotos con el filtro de la boda",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#111111",
+  "theme_color": "#111111",
+  "icons": []
+}
