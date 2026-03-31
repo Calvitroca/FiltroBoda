@@ -70,17 +70,28 @@ function initFirebase() {
 }
 
 async function savePhotoFirebase(dataURL) {
-  const id  = `photo_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-  console.log('[Firebase] Uploading to Storage…');
-  const ref = firebase.storage().ref(`wedding/${id}.jpg`);
-  await ref.putString(dataURL, 'data_url');
-  console.log('[Firebase] Storage OK, getting URL…');
-  const url = await ref.getDownloadURL();
-  console.log('[Firebase] Got URL, saving to Firestore…');
+  // Compress to max 900px wide / quality 0.65 to stay well under Firestore's 1MB doc limit
+  const compressed = await compressImage(dataURL, 900, 0.65);
+  const id = `photo_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
   await firebase.firestore().collection('photos').doc(id).set({
-    url, timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+    url:       compressed,
+    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
   });
-  console.log('[Firebase] Done!');
+}
+
+function compressImage(dataURL, maxWidth, quality) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const scale  = Math.min(1, maxWidth / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width  = Math.round(img.width  * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.src = dataURL;
+  });
 }
 
 function subscribeToPhotos() {
