@@ -71,12 +71,16 @@ function initFirebase() {
 
 async function savePhotoFirebase(dataURL) {
   const id  = `photo_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  console.log('[Firebase] Uploading to Storage…');
   const ref = firebase.storage().ref(`wedding/${id}.jpg`);
   await ref.putString(dataURL, 'data_url');
+  console.log('[Firebase] Storage OK, getting URL…');
   const url = await ref.getDownloadURL();
+  console.log('[Firebase] Got URL, saving to Firestore…');
   await firebase.firestore().collection('photos').doc(id).set({
     url, timestamp: firebase.firestore.FieldValue.serverTimestamp(),
   });
+  console.log('[Firebase] Done!');
 }
 
 function subscribeToPhotos() {
