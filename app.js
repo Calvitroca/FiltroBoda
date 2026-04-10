@@ -361,10 +361,12 @@ adminPinInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitAd
    ═══════════════════════════════════════════════════ */
 function checkAdminHash() {
   if (window.location.hash === '#admin') {
-    window.location.hash = '';
+    history.replaceState(null, '', window.location.pathname);
     if (!adminMode) openAdminModal();
   }
 }
+
+window.addEventListener('hashchange', checkAdminHash);
 
 function openAdminModal() {
   adminPinInput.value = '';
