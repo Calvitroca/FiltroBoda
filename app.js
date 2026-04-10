@@ -199,35 +199,28 @@ function capturePhoto() {
   const vw = video.videoWidth  || video.offsetWidth;
   const vh = video.videoHeight || video.offsetHeight;
 
-  // Canvas siempre 1080×1920 — el overlay nunca se recorta
+  // Captura nativa — sin escalar ni recortar
   const cap = document.createElement('canvas');
-  cap.width  = CAPTURE_W;
-  cap.height = CAPTURE_H;
+  cap.width  = vw;
+  cap.height = vh;
   const capCtx = cap.getContext('2d');
 
-  // Contain fit: el video entra completo, sin recortar nada
-  const scale   = Math.min(CAPTURE_W / vw, CAPTURE_H / vh);
-  const drawW   = vw * scale;
-  const drawH   = vh * scale;
-  const offsetX = (CAPTURE_W - drawW) / 2;
-  const offsetY = (CAPTURE_H - drawH) / 2;
-
   if (facingMode === 'user') {
-    capCtx.translate(CAPTURE_W, 0);
+    capCtx.translate(vw, 0);
     capCtx.scale(-1, 1);
   }
-  capCtx.drawImage(video, offsetX, offsetY, drawW, drawH);
+  capCtx.drawImage(video, 0, 0, vw, vh);
 
-  // Overlay siempre al tamaño exacto del canvas — completo, sin distorsión
+  // Overlay escalado a la resolución nativa del video
   capCtx.setTransform(1, 0, 0, 1, 0, 0);
   if (overlayImg.complete && overlayImg.naturalWidth > 0) {
-    capCtx.drawImage(overlayImg, 0, 0, CAPTURE_W, CAPTURE_H);
+    capCtx.drawImage(overlayImg, 0, 0, vw, vh);
   }
 
   capturedDataURL = cap.toDataURL('image/jpeg', 0.92);
 
-  previewCanvas.width  = CAPTURE_W;
-  previewCanvas.height = CAPTURE_H;
+  previewCanvas.width  = vw;
+  previewCanvas.height = vh;
   previewCtx.drawImage(cap, 0, 0);
 
   showScreen('screen-preview');
