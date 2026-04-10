@@ -162,7 +162,7 @@ async function startCamera() {
     });
     video.srcObject = stream;
     await video.play();
-    video.style.transform = facingMode === 'environment' ? 'scaleX(-1)' : 'none';
+    video.style.transform = facingMode === 'user' ? 'scaleX(-1)' : 'none';
   } catch (err) {
     console.error('Camera error:', err);
     alert('No se pudo acceder a la cámara. Asegúrate de dar permiso.');
