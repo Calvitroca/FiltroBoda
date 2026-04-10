@@ -199,40 +199,35 @@ function capturePhoto() {
   const vw = video.videoWidth  || video.offsetWidth;
   const vh = video.videoHeight || video.offsetHeight;
 
-  // Siempre portrait: si la cámara devuelve landscape lo rotamos 90°
-  const isLandscape = vw > vh;
-  const cw = isLandscape ? vh : vw;  // ancho del canvas final
-  const ch = isLandscape ? vw : vh;  // alto del canvas final
-
+  // Canvas siempre 1080×1920 — el overlay nunca se recorta
   const cap = document.createElement('canvas');
-  cap.width  = cw;
-  cap.height = ch;
+  cap.width  = CAPTURE_W;
+  cap.height = CAPTURE_H;
   const capCtx = cap.getContext('2d');
 
-  if (isLandscape) {
-    // Rotar 90° para convertir landscape en portrait
-    capCtx.translate(cw / 2, ch / 2);
-    capCtx.rotate(Math.PI / 2);
-    if (facingMode === 'user') capCtx.scale(1, -1);
-    capCtx.drawImage(video, -vw / 2, -vh / 2, vw, vh);
-  } else {
-    if (facingMode === 'user') {
-      capCtx.translate(cw, 0);
-      capCtx.scale(-1, 1);
-    }
-    capCtx.drawImage(video, 0, 0, vw, vh);
-  }
+  // Cover fit: el video llena el canvas (se pueden perder bordes del video, nunca del overlay)
+  const scale   = Math.max(CAPTURE_W / vw, CAPTURE_H / vh);
+  const drawW   = vw * scale;
+  const drawH   = vh * scale;
+  const offsetX = (CAPTURE_W - drawW) / 2;
+  const offsetY = (CAPTURE_H - drawH) / 2;
 
-  // Overlay del filtro (reset transform para que no se espeje)
+  if (facingMode === 'user') {
+    capCtx.translate(CAPTURE_W, 0);
+    capCtx.scale(-1, 1);
+  }
+  capCtx.drawImage(video, offsetX, offsetY, drawW, drawH);
+
+  // Overlay siempre al tamaño exacto del canvas — completo, sin distorsión
   capCtx.setTransform(1, 0, 0, 1, 0, 0);
   if (overlayImg.complete && overlayImg.naturalWidth > 0) {
-    capCtx.drawImage(overlayImg, 0, 0, cw, ch);
+    capCtx.drawImage(overlayImg, 0, 0, CAPTURE_W, CAPTURE_H);
   }
 
   capturedDataURL = cap.toDataURL('image/jpeg', 0.92);
 
-  previewCanvas.width  = cw;
-  previewCanvas.height = ch;
+  previewCanvas.width  = CAPTURE_W;
+  previewCanvas.height = CAPTURE_H;
   previewCtx.drawImage(cap, 0, 0);
 
   showScreen('screen-preview');
