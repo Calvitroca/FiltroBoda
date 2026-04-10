@@ -12,6 +12,10 @@ const WEDDING = {
 // Cambia este PIN antes de desplegar
 const ADMIN_PIN = '2603';
 
+// ── CAPTURE DIMENSIONS ───────────────────────────────
+const CAPTURE_W = 1080;
+const CAPTURE_H = 1920;
+
 // ── FIREBASE CONFIG (optional) ──────────────────────
 // Fill this in to enable real-time cross-device gallery sharing.
 // Leave empty ({}) to use local storage only.
@@ -148,7 +152,7 @@ async function startCamera() {
   if (stream) stream.getTracks().forEach(t => t.stop());
   try {
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+      video: { facingMode, width: { ideal: CAPTURE_W }, height: { ideal: CAPTURE_H } },
       audio: false,
     });
     video.srcObject = stream;
@@ -192,30 +196,36 @@ function capturePhoto() {
   const vh = video.videoHeight || video.offsetHeight;
 
   const cap = document.createElement('canvas');
-  cap.width  = vw;
-  cap.height = vh;
+  cap.width  = CAPTURE_W;
+  cap.height = CAPTURE_H;
   const capCtx = cap.getContext('2d');
 
-  // Mirror for front camera
+  // Cover fit: escala el video para llenar 1080×1920 sin deformar
+  const scale   = Math.max(CAPTURE_W / vw, CAPTURE_H / vh);
+  const drawW   = vw * scale;
+  const drawH   = vh * scale;
+  const offsetX = (CAPTURE_W - drawW) / 2;
+  const offsetY = (CAPTURE_H - drawH) / 2;
+
+  // Mirror para cámara frontal
   if (facingMode === 'user') {
-    capCtx.translate(vw, 0);
+    capCtx.translate(CAPTURE_W, 0);
     capCtx.scale(-1, 1);
   }
 
-  // Draw raw video frame
-  capCtx.drawImage(video, 0, 0, vw, vh);
+  capCtx.drawImage(video, offsetX, offsetY, drawW, drawH);
 
   // ──────────────────────────────────────────────────
   // TODO: draw filter overlay here once provided
   // Example (when overlay image is ready):
   //   capCtx.setTransform(1, 0, 0, 1, 0, 0); // reset mirror
-  //   capCtx.drawImage(overlayImg, 0, 0, vw, vh);
+  //   capCtx.drawImage(overlayImg, 0, 0, CAPTURE_W, CAPTURE_H);
   // ──────────────────────────────────────────────────
 
   capturedDataURL = cap.toDataURL('image/jpeg', 0.92);
 
-  previewCanvas.width  = vw;
-  previewCanvas.height = vh;
+  previewCanvas.width  = CAPTURE_W;
+  previewCanvas.height = CAPTURE_H;
   previewCtx.drawImage(cap, 0, 0);
 
   showScreen('screen-preview');
