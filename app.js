@@ -205,8 +205,8 @@ function capturePhoto() {
   cap.height = CAPTURE_H;
   const capCtx = cap.getContext('2d');
 
-  // Cover fit: el video llena el canvas (se pueden perder bordes del video, nunca del overlay)
-  const scale   = Math.max(CAPTURE_W / vw, CAPTURE_H / vh);
+  // Contain fit: el video entra completo, sin recortar nada
+  const scale   = Math.min(CAPTURE_W / vw, CAPTURE_H / vh);
   const drawW   = vw * scale;
   const drawH   = vh * scale;
   const offsetX = (CAPTURE_W - drawW) / 2;
