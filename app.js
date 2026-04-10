@@ -16,6 +16,10 @@ const ADMIN_PIN = '2603';
 const CAPTURE_W = 1080;
 const CAPTURE_H = 1920;
 
+// ── FILTER OVERLAY ───────────────────────────────────
+const overlayImg = new Image();
+overlayImg.src = 'overlay.png';
+
 // ── FIREBASE CONFIG (optional) ──────────────────────
 // Fill this in to enable real-time cross-device gallery sharing.
 // Leave empty ({}) to use local storage only.
@@ -215,12 +219,11 @@ function capturePhoto() {
 
   capCtx.drawImage(video, offsetX, offsetY, drawW, drawH);
 
-  // ──────────────────────────────────────────────────
-  // TODO: draw filter overlay here once provided
-  // Example (when overlay image is ready):
-  //   capCtx.setTransform(1, 0, 0, 1, 0, 0); // reset mirror
-  //   capCtx.drawImage(overlayImg, 0, 0, CAPTURE_W, CAPTURE_H);
-  // ──────────────────────────────────────────────────
+  // Overlay del filtro (reset transform para que no se espeje)
+  capCtx.setTransform(1, 0, 0, 1, 0, 0);
+  if (overlayImg.complete && overlayImg.naturalWidth > 0) {
+    capCtx.drawImage(overlayImg, 0, 0, CAPTURE_W, CAPTURE_H);
+  }
 
   capturedDataURL = cap.toDataURL('image/jpeg', 0.92);
 
