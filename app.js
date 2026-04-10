@@ -199,29 +199,40 @@ function capturePhoto() {
   const vw = video.videoWidth  || video.offsetWidth;
   const vh = video.videoHeight || video.offsetHeight;
 
+  // Siempre portrait: si la cámara devuelve landscape lo rotamos 90°
+  const isLandscape = vw > vh;
+  const cw = isLandscape ? vh : vw;  // ancho del canvas final
+  const ch = isLandscape ? vw : vh;  // alto del canvas final
+
   const cap = document.createElement('canvas');
-  cap.width  = vw;
-  cap.height = vh;
+  cap.width  = cw;
+  cap.height = ch;
   const capCtx = cap.getContext('2d');
 
-  // Mirror para cámara frontal
-  if (facingMode === 'user') {
-    capCtx.translate(vw, 0);
-    capCtx.scale(-1, 1);
+  if (isLandscape) {
+    // Rotar 90° para convertir landscape en portrait
+    capCtx.translate(cw / 2, ch / 2);
+    capCtx.rotate(Math.PI / 2);
+    if (facingMode === 'user') capCtx.scale(1, -1);
+    capCtx.drawImage(video, -vw / 2, -vh / 2, vw, vh);
+  } else {
+    if (facingMode === 'user') {
+      capCtx.translate(cw, 0);
+      capCtx.scale(-1, 1);
+    }
+    capCtx.drawImage(video, 0, 0, vw, vh);
   }
-
-  capCtx.drawImage(video, 0, 0, vw, vh);
 
   // Overlay del filtro (reset transform para que no se espeje)
   capCtx.setTransform(1, 0, 0, 1, 0, 0);
   if (overlayImg.complete && overlayImg.naturalWidth > 0) {
-    capCtx.drawImage(overlayImg, 0, 0, vw, vh);
+    capCtx.drawImage(overlayImg, 0, 0, cw, ch);
   }
 
   capturedDataURL = cap.toDataURL('image/jpeg', 0.92);
 
-  previewCanvas.width  = vw;
-  previewCanvas.height = vh;
+  previewCanvas.width  = cw;
+  previewCanvas.height = ch;
   previewCtx.drawImage(cap, 0, 0);
 
   showScreen('screen-preview');
