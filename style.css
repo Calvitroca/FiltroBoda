@@ -65,16 +65,38 @@ body {
   flex: 1;
   overflow: hidden;
   background: #000;
-  /* Push content below the status bar on notched phones */
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding-top: var(--safe-top);
 }
 
+/* Contenedor 9:16 centrado dentro del camera-wrap */
+.camera-wrap::before {
+  content: '';
+  display: block;
+  width: 100%;
+  padding-top: calc(100% * 16 / 9);
+  max-height: 100%;
+}
+
 #video {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
   transform: scaleX(-1); /* mirror selfie */
+}
+
+#filter-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
 }
 
 /* Countdown */
