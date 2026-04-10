@@ -72,20 +72,19 @@ body {
 }
 
 #video {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;   /* sin zoom, sin recorte */
+  position: absolute;
+  top: 50%;
+  left: 50%;
   display: block;
-  transform: scaleX(-1); /* mirror selfie */
+  /* tamaño y transform se aplican dinámicamente en adjustPreviewOrientation() */
 }
 
 #filter-overlay {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;   /* se adapta igual que el video */
+  top: 50%;
+  left: 50%;
   pointer-events: none;
+  /* tamaño y transform se aplican dinámicamente en adjustPreviewOrientation() */
 }
 
 /* Countdown */

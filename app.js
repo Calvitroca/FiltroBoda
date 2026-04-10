@@ -67,6 +67,7 @@ const downloadBtn    = $('download-btn');
 const closeModalBtn  = $('close-modal-btn');
 const modalBackdrop  = modal.querySelector('.modal-backdrop');
 const bgMusic        = $('bg-music');
+const filterOverlayEl = $('filter-overlay');
 const musicBtn       = $('music-btn');
 const musicIconOn    = $('music-icon-on');
 const musicIconOff   = $('music-icon-off');
@@ -161,9 +162,39 @@ async function startCamera() {
     });
     video.srcObject = stream;
     await video.play();
+    adjustPreviewOrientation();
   } catch (err) {
     console.error('Camera error:', err);
     alert('No se pudo acceder a la cámara. Asegúrate de dar permiso.');
+  }
+}
+
+function adjustPreviewOrientation() {
+  const vw = video.videoWidth;
+  const vh = video.videoHeight;
+  if (!vw || !vh) return;
+
+  const wrap = video.closest('.camera-wrap');
+  const cw   = wrap.clientWidth;
+  const ch   = wrap.clientHeight;
+
+  if (vw > vh) {
+    // Cámara devuelve landscape → rotamos 90° para mostrar portrait
+    // Tras la rotación el video visual pasa a tener vh de ancho y vw de alto
+    const scale = Math.max(cw / vh, ch / vw);
+    const dispW = Math.round(vw * scale);  // tamaño del elemento antes de rotar
+    const dispH = Math.round(vh * scale);
+    const mirror = facingMode === 'user' ? ' scaleY(-1)' : '';
+    video.style.cssText         = `position:absolute;top:50%;left:50%;width:${dispW}px;height:${dispH}px;transform:translate(-50%,-50%) rotate(90deg)${mirror};`;
+    // El overlay no se rota (ya es portrait), solo se centra al tamaño visual portrait
+    const oW = Math.round(vh * scale);
+    const oH = Math.round(vw * scale);
+    filterOverlayEl.style.cssText = `position:absolute;top:50%;left:50%;width:${oW}px;height:${oH}px;object-fit:fill;transform:translate(-50%,-50%);`;
+  } else {
+    // Ya es portrait
+    const mirror = facingMode === 'user' ? ' scaleX(-1)' : '';
+    video.style.cssText         = `position:absolute;top:50%;left:50%;width:100%;height:100%;object-fit:cover;transform:translate(-50%,-50%)${mirror};`;
+    filterOverlayEl.style.cssText = `position:absolute;top:50%;left:50%;width:100%;height:100%;object-fit:contain;transform:translate(-50%,-50%);`;
   }
 }
 
@@ -198,29 +229,41 @@ function capturePhoto() {
 
   const vw = video.videoWidth  || video.offsetWidth;
   const vh = video.videoHeight || video.offsetHeight;
+  const isLandscape = vw > vh;
 
-  // Captura nativa — sin escalar ni recortar
+  // Canvas siempre portrait
+  const cw = isLandscape ? vh : vw;
+  const ch = isLandscape ? vw : vh;
+
   const cap = document.createElement('canvas');
-  cap.width  = vw;
-  cap.height = vh;
+  cap.width  = cw;
+  cap.height = ch;
   const capCtx = cap.getContext('2d');
 
-  if (facingMode === 'user') {
-    capCtx.translate(vw, 0);
-    capCtx.scale(-1, 1);
+  if (isLandscape) {
+    // Rotar 90° CW para convertir landscape → portrait
+    capCtx.translate(cw / 2, ch / 2);
+    capCtx.rotate(Math.PI / 2);
+    if (facingMode === 'user') capCtx.scale(1, -1);
+    capCtx.drawImage(video, -vw / 2, -vh / 2, vw, vh);
+  } else {
+    if (facingMode === 'user') {
+      capCtx.translate(cw, 0);
+      capCtx.scale(-1, 1);
+    }
+    capCtx.drawImage(video, 0, 0, vw, vh);
   }
-  capCtx.drawImage(video, 0, 0, vw, vh);
 
-  // Overlay escalado a la resolución nativa del video
+  // Overlay al tamaño portrait del canvas
   capCtx.setTransform(1, 0, 0, 1, 0, 0);
   if (overlayImg.complete && overlayImg.naturalWidth > 0) {
-    capCtx.drawImage(overlayImg, 0, 0, vw, vh);
+    capCtx.drawImage(overlayImg, 0, 0, cw, ch);
   }
 
   capturedDataURL = cap.toDataURL('image/jpeg', 0.92);
 
-  previewCanvas.width  = vw;
-  previewCanvas.height = vh;
+  previewCanvas.width  = cw;
+  previewCanvas.height = ch;
   previewCtx.drawImage(cap, 0, 0);
 
   showScreen('screen-preview');
