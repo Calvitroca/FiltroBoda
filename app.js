@@ -8,6 +8,10 @@ const WEDDING = {
   date:  '30 · Marzo · 2026',
 };
 
+// ── ADMIN CONFIG ─────────────────────────────────────
+// Cambia este PIN antes de desplegar
+const ADMIN_PIN = '2603';
+
 // ── FIREBASE CONFIG (optional) ──────────────────────
 // Fill this in to enable real-time cross-device gallery sharing.
 // Leave empty ({}) to use local storage only.
@@ -28,6 +32,7 @@ let facingMode      = 'user'; // 'user' (front) | 'environment' (back)
 let photos          = [];     // { id, url, timestamp }
 let capturedDataURL = null;
 let useFirebase     = false;
+let adminMode       = sessionStorage.getItem('admin') === '1';
 
 /* ═══════════════════════════════════════════════════
    DOM REFS
@@ -53,6 +58,17 @@ const modalImg       = $('modal-img');
 const downloadBtn    = $('download-btn');
 const closeModalBtn  = $('close-modal-btn');
 const modalBackdrop  = modal.querySelector('.modal-backdrop');
+const bgMusic        = $('bg-music');
+const musicBtn       = $('music-btn');
+const musicIconOn    = $('music-icon-on');
+const musicIconOff   = $('music-icon-off');
+let musicMuted = false;
+
+const adminModal       = $('admin-modal');
+const adminPinInput    = $('admin-pin-input');
+const adminPinError    = $('admin-pin-error');
+const adminPinConfirm  = $('admin-pin-confirm');
+const adminPinCancel   = $('admin-pin-cancel');
 
 /* ═══════════════════════════════════════════════════
    FIREBASE INIT
@@ -237,6 +253,16 @@ function renderGallery() {
     overlay.innerHTML = '<span class="download-icon">📥</span>';
     div.append(img, overlay);
     div.addEventListener('click', () => openModal(photo.url));
+
+    if (adminMode) {
+      const delBtn = document.createElement('button');
+      delBtn.className = 'delete-photo-btn';
+      delBtn.title = 'Borrar foto';
+      delBtn.innerHTML = '🗑';
+      delBtn.addEventListener('click', e => { e.stopPropagation(); deletePhoto(photo.id); });
+      div.append(delBtn);
+    }
+
     photoGrid.prepend(div);
   });
 }
@@ -265,6 +291,22 @@ function showScreen(id) {
     s.classList.toggle('active', s.id === id);
     s.classList.toggle('hidden', s.id !== id);
   });
+  if (id === 'screen-gallery') {
+    if (!musicMuted) bgMusic.play().catch(() => {});
+  } else {
+    bgMusic.pause();
+  }
+}
+
+function toggleMusic() {
+  musicMuted = !musicMuted;
+  musicIconOn.classList.toggle('hidden', musicMuted);
+  musicIconOff.classList.toggle('hidden', !musicMuted);
+  if (musicMuted) {
+    bgMusic.pause();
+  } else {
+    bgMusic.play().catch(() => {});
+  }
 }
 
 /* ═══════════════════════════════════════════════════
@@ -308,11 +350,63 @@ saveBtn.addEventListener('click', async () => {
 
 closeModalBtn.addEventListener('click', closeModal);
 modalBackdrop.addEventListener('click', closeModal);
+musicBtn.addEventListener('click', toggleMusic);
+
+adminPinConfirm.addEventListener('click', submitAdminPin);
+adminPinCancel.addEventListener('click',  closeAdminModal);
+adminPinInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitAdminPin(); });
+
+/* ═══════════════════════════════════════════════════
+   ADMIN
+   ═══════════════════════════════════════════════════ */
+function checkAdminHash() {
+  if (window.location.hash === '#admin') {
+    window.location.hash = '';
+    if (!adminMode) openAdminModal();
+  }
+}
+
+function openAdminModal() {
+  adminPinInput.value = '';
+  adminPinError.classList.add('hidden');
+  adminModal.classList.remove('hidden');
+  setTimeout(() => adminPinInput.focus(), 100);
+}
+
+function closeAdminModal() {
+  adminModal.classList.add('hidden');
+}
+
+function submitAdminPin() {
+  if (adminPinInput.value === ADMIN_PIN) {
+    adminMode = true;
+    sessionStorage.setItem('admin', '1');
+    closeAdminModal();
+    renderGallery();
+    showScreen('screen-gallery');
+  } else {
+    adminPinError.classList.remove('hidden');
+    adminPinInput.value = '';
+    adminPinInput.focus();
+  }
+}
+
+async function deletePhoto(id) {
+  if (!confirm('¿Borrar esta foto?')) return;
+  if (useFirebase) {
+    await firebase.firestore().collection('photos').doc(id).delete();
+  } else {
+    photos = photos.filter(p => p.id !== id);
+    try { localStorage.setItem('wedding_photos', JSON.stringify(photos)); } catch (_) {}
+    renderGallery();
+  }
+}
 
 /* ═══════════════════════════════════════════════════
    INIT
    ═══════════════════════════════════════════════════ */
 (async function init() {
+  checkAdminHash();
   initFirebase();
   if (!useFirebase) loadPhotosLocal();
   await startCamera();

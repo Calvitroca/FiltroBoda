@@ -272,6 +272,18 @@ body {
   border-bottom: 1px solid rgba(0,0,0,0.08);
   flex-shrink: 0;
 }
+.gallery-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.music-btn {
+  color: var(--rose-dark);
+  width: 36px;
+  height: 36px;
+}
+.music-btn svg { width: 20px; height: 20px; }
 .btn-back {
   background: none;
   border: none;
@@ -292,11 +304,11 @@ body {
 .btn-back:active { background: rgba(0,0,0,0.06); }
 .btn-back svg { width: 20px; height: 20px; }
 .gallery-header h2 {
-  flex: 1;
   font-family: 'Playfair Display', serif;
   font-size: 20px;
   color: var(--dark);
   text-align: center;
+  flex: 1;
 }
 .gallery-count {
   font-size: 12px;
@@ -388,6 +400,60 @@ body {
   gap: 12px;
   width: 100%;
 }
+
+/* ── ADMIN MODAL ── */
+.admin-modal-content {
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 32px 24px 24px;
+  color: var(--dark);
+  gap: 12px;
+}
+.admin-modal-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+  width: 100%;
+}
+.admin-pin-input {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 22px;
+  letter-spacing: 6px;
+  text-align: center;
+  border: 2px solid rgba(0,0,0,0.15);
+  border-radius: 10px;
+  outline: none;
+  font-family: 'Lato', sans-serif;
+  color: var(--dark);
+}
+.admin-pin-input:focus { border-color: var(--rose); }
+.admin-pin-error {
+  font-size: 13px;
+  color: var(--rose-dark);
+  text-align: center;
+}
+
+/* ── DELETE BUTTON (admin mode) ── */
+.photo-thumb { position: relative; }
+.delete-photo-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(0,0,0,0.65);
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+.delete-photo-btn:active { background: rgba(180,0,0,0.8); }
 
 /* ── UTILITIES ── */
 .hidden { display: none !important; }
