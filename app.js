@@ -162,39 +162,9 @@ async function startCamera() {
     });
     video.srcObject = stream;
     await video.play();
-    adjustPreviewOrientation();
   } catch (err) {
     console.error('Camera error:', err);
     alert('No se pudo acceder a la cámara. Asegúrate de dar permiso.');
-  }
-}
-
-function adjustPreviewOrientation() {
-  const vw = video.videoWidth;
-  const vh = video.videoHeight;
-  if (!vw || !vh) return;
-
-  const wrap = video.closest('.camera-wrap');
-  const cw   = wrap.clientWidth;
-  const ch   = wrap.clientHeight;
-
-  if (vw > vh) {
-    // Cámara devuelve landscape → rotamos 90° para mostrar portrait
-    // Tras la rotación el video visual pasa a tener vh de ancho y vw de alto
-    const scale = Math.max(cw / vh, ch / vw);
-    const dispW = Math.round(vw * scale);  // tamaño del elemento antes de rotar
-    const dispH = Math.round(vh * scale);
-    const mirror = facingMode === 'user' ? ' scaleY(-1)' : '';
-    video.style.cssText         = `position:absolute;top:50%;left:50%;width:${dispW}px;height:${dispH}px;transform:translate(-50%,-50%) rotate(90deg)${mirror};`;
-    // El overlay no se rota (ya es portrait), solo se centra al tamaño visual portrait
-    const oW = Math.round(vh * scale);
-    const oH = Math.round(vw * scale);
-    filterOverlayEl.style.cssText = `position:absolute;top:50%;left:50%;width:${oW}px;height:${oH}px;object-fit:fill;transform:translate(-50%,-50%);`;
-  } else {
-    // Ya es portrait
-    const mirror = facingMode === 'user' ? ' scaleX(-1)' : '';
-    video.style.cssText         = `position:absolute;top:50%;left:50%;width:100%;height:100%;object-fit:cover;transform:translate(-50%,-50%)${mirror};`;
-    filterOverlayEl.style.cssText = `position:absolute;top:50%;left:50%;width:100%;height:100%;object-fit:contain;transform:translate(-50%,-50%);`;
   }
 }
 
@@ -231,7 +201,8 @@ function capturePhoto() {
   const vh = video.videoHeight || video.offsetHeight;
   const isLandscape = vw > vh;
 
-  // Canvas siempre portrait
+  // Canvas siempre portrait (igual que Instagram Stories)
+  // Si el video es landscape: ancho = vh, alto = vw → crop central sin rotación
   const cw = isLandscape ? vh : vw;
   const ch = isLandscape ? vw : vh;
 
@@ -240,21 +211,20 @@ function capturePhoto() {
   cap.height = ch;
   const capCtx = cap.getContext('2d');
 
-  if (isLandscape) {
-    // Rotar 90° CW para convertir landscape → portrait
-    capCtx.translate(cw / 2, ch / 2);
-    capCtx.rotate(Math.PI / 2);
-    if (facingMode === 'user') capCtx.scale(1, -1);
-    capCtx.drawImage(video, -vw / 2, -vh / 2, vw, vh);
-  } else {
-    if (facingMode === 'user') {
-      capCtx.translate(cw, 0);
-      capCtx.scale(-1, 1);
-    }
-    capCtx.drawImage(video, 0, 0, vw, vh);
-  }
+  // Cover fit: escala el video para llenar el canvas portrait, recorta los lados
+  const scale   = Math.max(cw / vw, ch / vh);
+  const drawW   = vw * scale;
+  const drawH   = vh * scale;
+  const offsetX = (cw - drawW) / 2;
+  const offsetY = (ch - drawH) / 2;
 
-  // Overlay al tamaño portrait del canvas
+  if (facingMode === 'user') {
+    capCtx.translate(cw, 0);
+    capCtx.scale(-1, 1);
+  }
+  capCtx.drawImage(video, offsetX, offsetY, drawW, drawH);
+
+  // Overlay completo sobre el canvas portrait
   capCtx.setTransform(1, 0, 0, 1, 0, 0);
   if (overlayImg.complete && overlayImg.naturalWidth > 0) {
     capCtx.drawImage(overlayImg, 0, 0, cw, ch);
