@@ -218,10 +218,6 @@ function capturePhoto() {
   const offsetX = (cw - drawW) / 2;
   const offsetY = (ch - drawH) / 2;
 
-  if (facingMode === 'user') {
-    capCtx.translate(cw, 0);
-    capCtx.scale(-1, 1);
-  }
   capCtx.drawImage(video, offsetX, offsetY, drawW, drawH);
 
   // Overlay completo sobre el canvas portrait
