@@ -157,7 +157,7 @@ async function startCamera() {
   if (stream) stream.getTracks().forEach(t => t.stop());
   try {
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode, width: { ideal: CAPTURE_W }, height: { ideal: CAPTURE_H } },
+      video: { facingMode },   // resolución nativa del dispositivo, sin forzar
       audio: false,
     });
     video.srcObject = stream;
