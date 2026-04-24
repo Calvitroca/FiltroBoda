@@ -73,6 +73,7 @@ const musicIconOn    = $('music-icon-on');
 const musicIconOff   = $('music-icon-off');
 let musicMuted = false;
 
+const downloadAllBtn   = $('download-all-btn');
 const adminModal       = $('admin-modal');
 const adminPinInput    = $('admin-pin-input');
 const adminPinError    = $('admin-pin-error');
@@ -367,6 +368,7 @@ closeModalBtn.addEventListener('click', closeModal);
 modalBackdrop.addEventListener('click', closeModal);
 musicBtn.addEventListener('click', toggleMusic);
 
+downloadAllBtn.addEventListener('click', downloadAllPhotos);
 adminPinConfirm.addEventListener('click', submitAdminPin);
 adminPinCancel.addEventListener('click',  closeAdminModal);
 adminPinInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitAdminPin(); });
@@ -394,11 +396,34 @@ function closeAdminModal() {
   adminModal.classList.add('hidden');
 }
 
+async function downloadAllPhotos() {
+  if (!photos.length) return;
+  downloadAllBtn.disabled = true;
+  downloadAllBtn.style.opacity = '0.4';
+
+  const zip = new JSZip();
+  photos.forEach((photo, i) => {
+    const base64 = photo.url.split(',')[1];
+    zip.file(`boda_${String(i + 1).padStart(3, '0')}.jpg`, base64, { base64: true });
+  });
+
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'fotos-boda.zip';
+  a.click();
+  URL.revokeObjectURL(a.href);
+
+  downloadAllBtn.disabled = false;
+  downloadAllBtn.style.opacity = '1';
+}
+
 function submitAdminPin() {
   if (adminPinInput.value === ADMIN_PIN) {
     adminMode = true;
     sessionStorage.setItem('admin', '1');
     closeAdminModal();
+    downloadAllBtn.classList.remove('hidden');
     renderGallery();
     showScreen('screen-gallery');
   } else {
@@ -424,6 +449,7 @@ async function deletePhoto(id) {
    ═══════════════════════════════════════════════════ */
 (async function init() {
   checkAdminHash();
+  if (adminMode) downloadAllBtn.classList.remove('hidden');
   initFirebase();
   if (!useFirebase) loadPhotosLocal();
   await startCamera();

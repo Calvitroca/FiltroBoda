@@ -83,6 +83,13 @@
       </button>
       <h2>Galería</h2>
       <div class="gallery-header-right">
+        <button id="download-all-btn" class="icon-btn download-all-btn hidden" title="Descargar todas">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+        </button>
         <button id="music-btn" class="icon-btn music-btn" title="Música">
           <svg id="music-icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M9 18V5l12-2v13"/>
@@ -136,6 +143,7 @@
   </div>
 
   <!-- Firebase (optional – fill in firebaseConfig in app.js to enable cross-device sharing) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
